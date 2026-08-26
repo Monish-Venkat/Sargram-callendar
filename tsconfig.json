@@ -15,5 +15,6 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "convex"]
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }

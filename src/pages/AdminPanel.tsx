@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useInvites, useAllMembers, useEvents, useAddInvite, useDeleteInvite, useAddEvent } from "../hooks/useSupabase";
 
 type Role = "event_head" | "core" | "teacher";
 
 export default function AdminPanel() {
-  const invites = useQuery(api.members.listInvites) ?? [];
-  const members = useQuery(api.members.listAllMembers) ?? [];
-  const events = useQuery(api.members.listEvents) ?? [];
+  const { data: invites = [] } = useInvites();
+  const { data: members = [] } = useAllMembers();
+  const { data: events = [] } = useEvents();
 
-  const addInvite = useMutation(api.members.addInvite);
-  const removeInvite = useMutation(api.members.deleteInvite);
-  const addEvent = useMutation(api.members.addEvent);
+  const addInvite = useAddInvite();
+  const removeInvite = useDeleteInvite();
+  const addEvent = useAddEvent();
 
   const [form, setForm] = useState({
     email: "",
@@ -26,7 +25,7 @@ export default function AdminPanel() {
     e.preventDefault();
     setStatus(null);
     try {
-      await addInvite({
+      await addInvite.mutateAsync({
         email: form.email.trim().toLowerCase(),
         name: form.name.trim(),
         role: form.role,
@@ -42,7 +41,7 @@ export default function AdminPanel() {
   async function submitEvent(e: React.FormEvent) {
     e.preventDefault();
     if (!newEventName.trim()) return;
-    await addEvent({ name: newEventName.trim() });
+    await addEvent.mutateAsync(newEventName.trim());
     setNewEventName("");
   }
 
@@ -83,14 +82,14 @@ export default function AdminPanel() {
                 Select event / department
               </option>
               {events.map((ev) => (
-                <option key={ev._id} value={ev.name}>
+                <option key={ev.id} value={ev.name}>
                   {ev.name}
                 </option>
               ))}
             </select>
           )}
-          <button className="primary" type="submit">
-            Add member
+          <button className="primary" type="submit" disabled={addInvite.isPending}>
+            {addInvite.isPending ? "Adding…" : "Add member"}
           </button>
         </form>
         {form.role === "event_head" && events.length === 0 && (
@@ -108,11 +107,13 @@ export default function AdminPanel() {
             value={newEventName}
             onChange={(e) => setNewEventName(e.target.value)}
           />
-          <button type="submit">Add</button>
+          <button type="submit" disabled={addEvent.isPending}>
+            {addEvent.isPending ? "Adding…" : "Add"}
+          </button>
         </form>
         <ul className="admin-list">
           {events.map((ev) => (
-            <li key={ev._id}>{ev.name}</li>
+            <li key={ev.id}>{ev.name}</li>
           ))}
           {events.length === 0 && <li className="muted">No events added yet</li>}
         </ul>
@@ -123,12 +124,12 @@ export default function AdminPanel() {
         <p className="admin-hint">Not signed in yet — they'll get access the moment they log in with this email.</p>
         <ul className="admin-list">
           {invites.map((inv) => (
-            <li key={inv._id}>
+            <li key={inv.id}>
               <span>
                 {inv.name} — {inv.email} · {roleLabel(inv.role)}
-                {inv.eventName ? ` · ${inv.eventName}` : ""}
+                {inv.event_name ? ` · ${inv.event_name}` : ""}
               </span>
-              <button className="link-btn" onClick={() => removeInvite({ inviteId: inv._id })}>
+              <button className="link-btn" onClick={() => removeInvite.mutate(inv.id)} disabled={removeInvite.isPending}>
                 Remove
               </button>
             </li>
@@ -141,10 +142,10 @@ export default function AdminPanel() {
         <h3>Active members ({members.length})</h3>
         <ul className="admin-list">
           {members.map((m) => (
-            <li key={m._id}>
+            <li key={m.id}>
               <span>
                 {m.name} — {m.email} · {roleLabel(m.role)}
-                {m.eventName ? ` · ${m.eventName}` : ""}
+                {m.event_name ? ` · ${m.event_name}` : ""}
               </span>
             </li>
           ))}

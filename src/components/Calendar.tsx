@@ -1,7 +1,5 @@
-import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useMemo, useState, useEffect } from "react";
+import { useLogsForMember, useUpsertLog, useDeleteLog } from "../hooks/useSupabase";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -24,15 +22,13 @@ export default function Calendar({
   const [openDate, setOpenDate] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
-  const logs = useQuery(api.taskLogs.logsForMember, {
-    memberId: memberId as Id<"members">,
-  });
-  const upsertLog = useMutation(api.taskLogs.upsertLog);
-  const deleteLog = useMutation(api.taskLogs.deleteLog);
+  const { data: logs = [], isLoading } = useLogsForMember(memberId);
+  const upsertLog = useUpsertLog();
+  const deleteLog = useDeleteLog();
 
   const logMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const l of logs ?? []) m.set(l.date, l.description);
+    const m = new Map<string, { description: string; reviewed?: boolean }>();
+    for (const l of logs) m.set(l.date, { description: l.description, reviewed: l.reviewed });
     return m;
   }, [logs]);
 
@@ -42,86 +38,140 @@ export default function Calendar({
   const cells: (number | null)[] = Array(startWeekday).fill(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
+  const todayStr = today.toISOString().split("T")[0];
+
   function fmt(y: number, m: number, d: number) {
     return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   }
 
   function openDay(d: number) {
+    if (!editable) return;
     const key = fmt(year, month, d);
     setOpenDate(key);
-    setDraft(logMap.get(key) ?? "");
+    setDraft(logMap.get(key)?.description ?? "");
   }
 
   async function save() {
     if (!openDate) return;
-    if (draft.trim() === "") {
-      await deleteLog({ date: openDate });
-    } else {
-      await upsertLog({ date: openDate, description: draft.trim() });
+    try {
+      if (draft.trim() === "") {
+        await deleteLog.mutateAsync(openDate);
+      } else {
+        await upsertLog.mutateAsync({ date: openDate, description: draft.trim() });
+      }
+      setOpenDate(null);
+    } catch (error) {
+      console.error("Failed to save:", error);
     }
-    setOpenDate(null);
   }
 
   function prevMonth() {
-    if (month === 0) {
-      setMonth(11);
-      setYear((y) => y - 1);
-    } else {
-      setMonth((m) => m - 1);
-    }
+    if (month === 0) { setMonth(11); setYear((y) => y - 1); }
+    else { setMonth((m) => m - 1); }
   }
   function nextMonth() {
-    if (month === 11) {
-      setMonth(0);
-      setYear((y) => y + 1);
-    } else {
-      setMonth((m) => m + 1);
-    }
+    if (month === 11) { setMonth(0); setYear((y) => y + 1); }
+    else { setMonth((m) => m + 1); }
   }
+  function goToToday() {
+    setYear(today.getFullYear());
+    setMonth(today.getMonth());
+  }
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (!openDate) return;
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) save();
+      if (e.key === "Escape") setOpenDate(null);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [openDate]);
 
   return (
     <div className="calendar-wrap">
       <div className="calendar-header">
-        <h2>{memberName}&apos;s Log</h2>
+        <div className="calendar-title">
+          <h2>{memberName}&apos;s Task Log</h2>
+          <span className="member-role">Daily Activity Calendar</span>
+        </div>
         <div className="month-nav">
-          <button onClick={prevMonth} aria-label="Previous month">‹</button>
-          <span>{MONTHS[month]} {year}</span>
-          <button onClick={nextMonth} aria-label="Next month">›</button>
+          <button className="nav-btn" onClick={prevMonth} aria-label="Previous month">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button className="month-label" onClick={goToToday} aria-label="Go to today">
+            {MONTHS[month]} {year}
+          </button>
+          <button className="nav-btn" onClick={nextMonth} aria-label="Next month">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+          {year !== today.getFullYear() || month !== today.getMonth() && (
+            <button className="btn btn-ghost btn-sm today-btn" onClick={goToToday}>Today</button>
+          )}
         </div>
       </div>
 
-      <div className="calendar-grid weekdays">
+      <div className="calendar-grid weekdays" role="row">
         {WEEKDAYS.map((d) => (
-          <div key={d} className="weekday">{d}</div>
+          <div key={d} className="weekday" role="columnheader">{d}</div>
         ))}
       </div>
 
-      <div className="calendar-grid">
+      <div className="calendar-grid" role="grid">
         {cells.map((d, i) => {
-          if (d === null) return <div key={i} className="cell empty" />;
+          if (d === null) return <div key={i} className="cell empty" role="gridcell" />;
           const key = fmt(year, month, d);
-          const has = logMap.has(key);
-          const isToday =
-            year === today.getFullYear() &&
-            month === today.getMonth() &&
-            d === today.getDate();
+          const log = logMap.get(key);
+          const has = !!log;
+          const isToday = key === todayStr;
+          const isFuture = new Date(key) > today;
+          const isReviewed = log?.reviewed === true;
           return (
             <button
               key={i}
-              className={`cell${has ? " has-log" : ""}${isToday ? " today" : ""}`}
+              className={`cell${has ? " has-log" : ""}${isToday ? " today" : ""}${isFuture ? " future" : ""}${isReviewed ? " reviewed" : ""}`}
               onClick={() => openDay(d)}
+              disabled={!editable || isFuture}
+              aria-label={key}
+              role="gridcell"
+              tabIndex={editable && !isFuture ? 0 : -1}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openDay(d); }}
             >
               <span className="date-num">{d}</span>
-              {has && <span className="dot" />}
+              {has && (
+                <>
+                  <span className={`log-indicator ${isReviewed ? "reviewed" : ""}`} />
+                  {isReviewed && <span className="review-check" aria-label="Reviewed">✓</span>}
+                </>
+              )}
             </button>
           );
         })}
       </div>
 
+      <div className="calendar-legend">
+        <span className="legend-item"><span className="legend-dot has-log" /> Has entry</span>
+        <span className="legend-item"><span className="legend-dot reviewed" /> Reviewed</span>
+        <span className="legend-item"><span className="legend-dot today" /> Today</span>
+        <span className="legend-item"><span className="legend-dot future" /> Future</span>
+      </div>
+
       {openDate && (
         <div className="modal-backdrop" onClick={() => setOpenDate(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{openDate}</h3>
+            <div className="modal-header">
+              <h3>{openDate}</h3>
+              <button className="modal-close" onClick={() => setOpenDate(null)} aria-label="Close">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
             {editable ? (
               <>
                 <textarea
@@ -130,16 +180,38 @@ export default function Calendar({
                   placeholder="What did you work on today?"
                   rows={6}
                   autoFocus
+                  className="modal-textarea"
                 />
-                <div className="modal-actions">
-                  <button onClick={() => setOpenDate(null)}>Cancel</button>
-                  <button className="primary" onClick={save}>Save</button>
+                <div className="modal-footer">
+                  <span className="char-count">{draft.length} characters</span>
+                  <div className="modal-actions">
+                    <button className="btn btn-secondary" onClick={() => setOpenDate(null)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={save} disabled={upsertLog.isPending || deleteLog.isPending}>
+                      {(upsertLog.isPending || deleteLog.isPending) ? "Saving…" : draft.trim() === "" ? "Delete Entry" : "Save Entry"}
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (
-              <p className="readonly-text">
-                {logMap.get(openDate) || "No entry for this date."}
-              </p>
+              <div className="modal-readonly">
+                {logMap.get(openDate)?.description ? (
+                  <>
+                    <div className={`readonly-content ${logMap.get(openDate)?.reviewed ? "reviewed" : ""}`}>
+                      <pre>{logMap.get(openDate)!.description}</pre>
+                    </div>
+                    {logMap.get(openDate)?.reviewed && (
+                      <div className="review-badge">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span>Reviewed by Core Team</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="empty-state">No entry for this date.</p>
+                )}
+              </div>
             )}
           </div>
         </div>

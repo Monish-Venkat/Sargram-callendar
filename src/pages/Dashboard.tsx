@@ -1,24 +1,25 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useViewableMembers } from "../hooks/useSupabase";
 import Calendar from "../components/Calendar";
 import AdminPanel from "./AdminPanel";
+import ReviewDashboard from "../components/ReviewDashboard";
 
 type Member = {
-  _id: string;
+  id: string;
   name: string;
   role: "event_head" | "core" | "teacher";
   eventName?: string;
 };
 
 export default function Dashboard({ member }: { member: Member }) {
-  const viewable = (useQuery(api.members.listViewableMembers) ?? []) as Member[];
-  const [selectedId, setSelectedId] = useState<string>(member._id);
-  const [view, setView] = useState<"calendar" | "manage">("calendar");
+  const { data: viewable = [] } = useViewableMembers();
+  const [selectedId, setSelectedId] = useState<string>(member.id);
+  const [view, setView] = useState<"calendar" | "review" | "manage">("calendar");
 
-  const selected = viewable.find((m) => m._id === selectedId) ?? member;
-  const canEditSelected = selected._id === member._id && member.role !== "teacher";
+  const selected = viewable.find((m) => m.id === selectedId) ?? member;
+  const canEditSelected = selected.id === member.id && member.role !== "teacher";
   const isCore = member.role === "core";
+  const isTeacher = member.role === "teacher";
 
   return (
     <div className="dashboard">
@@ -29,22 +30,47 @@ export default function Dashboard({ member }: { member: Member }) {
           {member.eventName ? ` · ${member.eventName}` : ""}
         </div>
 
-        {isCore && (
-          <div className="view-switch">
+        <nav className="sidebar-nav">
+          <button
+            className={view === "calendar" ? "active" : ""}
+            onClick={() => setView("calendar")}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            Calendar
+          </button>
+          {(isCore || isTeacher) && (
             <button
-              className={view === "calendar" ? "active" : ""}
-              onClick={() => setView("calendar")}
+              className={view === "review" ? "active" : ""}
+              onClick={() => setView("review")}
             >
-              Calendar
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              Review Logs
             </button>
+          )}
+          {isCore && (
             <button
               className={view === "manage" ? "active" : ""}
               onClick={() => setView("manage")}
             >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
               Manage Team
             </button>
-          </div>
-        )}
+          )}
+        </nav>
 
         {view === "calendar" && viewable.length > 1 && (
           <>
@@ -53,13 +79,13 @@ export default function Dashboard({ member }: { member: Member }) {
             </div>
             <ul className="member-list">
               {viewable.map((m) => (
-                <li key={m._id}>
+                <li key={m.id}>
                   <button
-                    className={m._id === selectedId ? "active" : ""}
-                    onClick={() => setSelectedId(m._id)}
+                    className={m.id === selectedId ? "active" : ""}
+                    onClick={() => setSelectedId(m.id)}
                   >
                     <span>{m.name}</span>
-                    <span className="tag">{m.eventName ?? "Core"}</span>
+                    <span className="tag">{m.event_name ?? "Core"}</span>
                   </button>
                 </li>
               ))}
@@ -71,10 +97,12 @@ export default function Dashboard({ member }: { member: Member }) {
       <main className="main-panel">
         {view === "manage" && isCore ? (
           <AdminPanel />
+        ) : view === "review" && (isCore || isTeacher) ? (
+          <ReviewDashboard member={member} />
         ) : (
           <Calendar
-            key={selected._id}
-            memberId={selected._id}
+            key={selected.id}
+            memberId={selected.id}
             memberName={selected.name}
             editable={canEditSelected}
           />
