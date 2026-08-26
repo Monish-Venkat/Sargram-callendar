@@ -29,7 +29,7 @@ BEGIN
 
   SELECT * INTO existing_member FROM public.members WHERE clerk_id = current_user_id;
   IF FOUND THEN
-    RETURN QUERY SELECT existing_member;
+    RETURN NEXT existing_member;
     RETURN;
   END IF;
 
@@ -38,7 +38,7 @@ BEGIN
   IF FOUND THEN
     UPDATE public.members SET clerk_id = current_user_id WHERE id = existing_member.id
     RETURNING * INTO new_member;
-    RETURN QUERY SELECT new_member;
+    RETURN NEXT new_member;
     RETURN;
   END IF;
 
@@ -52,7 +52,8 @@ BEGIN
   RETURNING * INTO new_member;
 
   DELETE FROM public.invites WHERE id = invite_record.id;
-  RETURN QUERY SELECT new_member;
+  RETURN NEXT new_member;
+  RETURN;
 END;
 $$;
 
