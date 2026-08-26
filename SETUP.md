@@ -7,7 +7,8 @@ longer required.
 
 1. In Supabase SQL Editor, run [`supabase-schema.sql`](supabase-schema.sql)
    once for a new project. If the schema already exists, run only
-   [`supabase-native-auth-fix.sql`](supabase-native-auth-fix.sql) instead.
+   [`supabase-auto-provision-members.sql`](supabase-auto-provision-members.sql)
+   once instead. It also backfills existing invited accounts.
 2. In **Authentication → Providers → Email**, enable Email login.
 3. In **Authentication → URL Configuration**, add your local URL (for example
    `http://localhost:5173`) and production URL as redirect URLs.

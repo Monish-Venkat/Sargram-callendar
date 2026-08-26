@@ -244,6 +244,34 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 REVOKE ALL ON FUNCTION ensure_member() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ensure_member() TO authenticated;
 
+-- Automatically convert an invite to a member as soon as the Supabase Auth
+-- account is created. The ensure_member() RPC remains a fallback for accounts
+-- that existed before the invite was issued.
+CREATE OR REPLACE FUNCTION provision_invited_member()
+RETURNS TRIGGER AS $$
+DECLARE
+  invite_record invites%ROWTYPE;
+BEGIN
+  SELECT * INTO invite_record FROM invites WHERE LOWER(email) = LOWER(NEW.email);
+  IF NOT FOUND THEN RETURN NEW; END IF;
+
+  INSERT INTO members (clerk_id, email, name, role, event_name)
+  VALUES (NEW.id::TEXT, LOWER(NEW.email), invite_record.name, invite_record.role, invite_record.event_name)
+  ON CONFLICT (email) DO UPDATE SET
+    clerk_id = EXCLUDED.clerk_id,
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    event_name = EXCLUDED.event_name,
+    updated_at = NOW();
+  DELETE FROM invites WHERE id = invite_record.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE TRIGGER on_auth_user_created_provision_member
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION provision_invited_member();
+
 -- Helper function: Get viewable members for current user
 CREATE OR REPLACE FUNCTION get_viewable_members()
 RETURNS SETOF members AS $$
