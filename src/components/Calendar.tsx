@@ -6,6 +6,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const FINAL_LOG_DATE = new Date(2026, 9, 31, 23, 59, 59);
 
 export default function Calendar({
   memberId,
@@ -128,17 +129,17 @@ export default function Calendar({
           const log = logMap.get(key);
           const has = !!log;
           const isToday = key === todayStr;
-          const isFuture = new Date(key) > today;
+          const isAfterDeadline = new Date(`${key}T00:00:00`) > FINAL_LOG_DATE;
           const isReviewed = log?.reviewed === true;
           return (
             <button
               key={i}
-              className={`cell${has ? " has-log" : ""}${isToday ? " today" : ""}${isFuture ? " future" : ""}${isReviewed ? " reviewed" : ""}`}
+              className={`cell${has ? " has-log" : ""}${isToday ? " today" : ""}${isAfterDeadline ? " future" : ""}${isReviewed ? " reviewed" : ""}`}
               onClick={() => openDay(d)}
-              disabled={!editable || isFuture}
+              disabled={!editable || isAfterDeadline}
               aria-label={key}
               role="gridcell"
-              tabIndex={editable && !isFuture ? 0 : -1}
+              tabIndex={editable && !isAfterDeadline ? 0 : -1}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openDay(d); }}
             >
               <span className="date-num">{d}</span>
@@ -157,7 +158,7 @@ export default function Calendar({
         <span className="legend-item"><span className="legend-dot has-log" /> Has entry</span>
         <span className="legend-item"><span className="legend-dot reviewed" /> Reviewed</span>
         <span className="legend-item"><span className="legend-dot today" /> Today</span>
-        <span className="legend-item"><span className="legend-dot future" /> Future</span>
+        <span className="legend-item"><span className="legend-dot future" /> After Oct 31</span>
       </div>
 
       {openDate && (

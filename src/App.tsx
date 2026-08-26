@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { useEnsureMember, useCurrentMember } from "./hooks/useSupabase";
+import { useEnsureMember } from "./hooks/useSupabase";
 import Dashboard from "./pages/Dashboard";
 import brandLogo from "./assets/sargam-brown.png";
 
@@ -39,14 +39,13 @@ export default function App() {
 
 function Gate() {
   const ensureMember = useEnsureMember();
-  const { data: member, isLoading } = useCurrentMember();
-  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
-    if (!attempted) ensureMember.mutate(undefined, { onSettled: () => setAttempted(true) });
-  }, [attempted, ensureMember]);
+    if (ensureMember.status === "idle") ensureMember.mutate();
+  }, [ensureMember]);
 
-  if (!attempted || isLoading) return <div className="center-msg">Loading your workspace…</div>;
+  if (ensureMember.isPending || ensureMember.status === "idle") return <div className="center-msg">Loading your workspace…</div>;
+  const member = ensureMember.data;
   if (!member) return <div className="center-msg"><h2>Access not set up yet</h2><p>Your signed-in email is not on the SARGAM invite list. Ask a Core Team member to add it, then sign out and back in.</p></div>;
   return <Dashboard member={member} />;
 }
