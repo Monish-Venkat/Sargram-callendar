@@ -80,6 +80,8 @@ export function useAddInvite() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invites });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allMembers });
+      queryClient.invalidateQueries({ queryKey: queryKeys.viewableMembers });
     },
   });
 }

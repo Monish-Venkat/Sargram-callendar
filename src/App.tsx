@@ -46,7 +46,7 @@ function Gate() {
 
   if (ensureMember.isPending || ensureMember.status === "idle") return <div className="center-msg">Loading your workspace…</div>;
   const member = ensureMember.data;
-  if (!member) return <div className="center-msg"><h2>Access not set up yet</h2><p>Your signed-in email is not on the SARGAM invite list. Ask a Core Team member to add it, then sign out and back in.</p></div>;
+  if (!member) return <div className="center-msg"><h2>Access not set up yet</h2><p>{ensureMember.error ? `Account setup failed: ${ensureMember.error.message}` : "Your signed-in email is not on the SARGAM invite list. Ask a Core Team member to add it, then refresh this page."}</p></div>;
   return <Dashboard member={member} />;
 }
 

@@ -54,3 +54,52 @@ USING public.members m
 WHERE LOWER(i.email) = LOWER(m.email);
 
 SELECT email, name, role FROM public.members ORDER BY created_at DESC;
+
+-- If a person already created an account before the Core Team sends their
+-- invite, activate them immediately when the invite is added.
+CREATE OR REPLACE FUNCTION public.add_invite(
+  p_email TEXT,
+  p_name TEXT,
+  p_role public.member_role,
+  p_event_name TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  caller_member public.members%ROWTYPE;
+  invite_record public.invites%ROWTYPE;
+  account_record auth.users%ROWTYPE;
+BEGIN
+  SELECT * INTO caller_member FROM public.members WHERE clerk_id = auth.uid()::TEXT;
+  IF NOT FOUND OR caller_member.role != 'core' THEN
+    RAISE EXCEPTION 'Only Core Team members can invite people';
+  END IF;
+
+  INSERT INTO public.invites (email, name, role, event_name)
+  VALUES (LOWER(p_email), p_name, p_role, p_event_name)
+  ON CONFLICT (email) DO UPDATE SET
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    event_name = EXCLUDED.event_name
+  RETURNING * INTO invite_record;
+
+  SELECT * INTO account_record FROM auth.users WHERE LOWER(email) = LOWER(p_email);
+  IF FOUND THEN
+    INSERT INTO public.members (clerk_id, email, name, role, event_name)
+    VALUES (account_record.id::TEXT, LOWER(account_record.email), invite_record.name, invite_record.role, invite_record.event_name)
+    ON CONFLICT (email) DO UPDATE SET
+      clerk_id = EXCLUDED.clerk_id,
+      name = EXCLUDED.name,
+      role = EXCLUDED.role,
+      event_name = EXCLUDED.event_name,
+      updated_at = NOW();
+    DELETE FROM public.invites WHERE id = invite_record.id;
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.add_invite(TEXT, TEXT, public.member_role, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.add_invite(TEXT, TEXT, public.member_role, TEXT) TO authenticated;
