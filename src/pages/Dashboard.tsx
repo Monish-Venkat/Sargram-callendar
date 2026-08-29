@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useViewableMembers } from "../hooks/useSupabase";
 import Calendar from "../components/Calendar";
 import AdminPanel from "./AdminPanel";
@@ -16,15 +16,51 @@ export default function Dashboard({ member }: { member: Member }) {
   const { data: viewable = [] } = useViewableMembers();
   const [selectedId, setSelectedId] = useState<string>(member.id);
   const [view, setView] = useState<"calendar" | "workspace" | "review" | "manage">("calendar");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const selected = viewable.find((m) => m.id === selectedId) ?? member;
   const canEditSelected = selected.id === member.id && member.role !== "teacher";
   const isCore = member.role === "core";
   const isTeacher = member.role === "teacher";
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
+
+  function openView(nextView: typeof view) {
+    setView(nextView);
+    setMenuOpen(false);
+  }
+
   return (
     <div className="dashboard">
-      <aside className="sidebar">
+      <button
+        className={`mobile-menu-toggle${menuOpen ? " open" : ""}`}
+        type="button"
+        aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+        aria-controls="dashboard-navigation"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((current) => !current)}
+      >
+        <span /><span /><span />
+      </button>
+      <button
+        className={`mobile-nav-backdrop${menuOpen ? " open" : ""}`}
+        type="button"
+        aria-label="Close navigation"
+        tabIndex={menuOpen ? 0 : -1}
+        onClick={() => setMenuOpen(false)}
+      />
+      <aside id="dashboard-navigation" className={`sidebar${menuOpen ? " mobile-open" : ""}`}>
         <div className="role-badge">{roleLabel(member.role)}</div>
         <div className="member-self">
           {member.name}
@@ -34,7 +70,7 @@ export default function Dashboard({ member }: { member: Member }) {
         <nav className="sidebar-nav">
           <button
             className={view === "calendar" ? "active" : ""}
-            onClick={() => setView("calendar")}
+            onClick={() => openView("calendar")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -46,7 +82,7 @@ export default function Dashboard({ member }: { member: Member }) {
           </button>
           <button
             className={view === "workspace" ? "active" : ""}
-            onClick={() => setView("workspace")}
+            onClick={() => openView("workspace")}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 11l3 3L22 4" /><path d="M21 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11" />
@@ -56,7 +92,7 @@ export default function Dashboard({ member }: { member: Member }) {
           {(isCore || isTeacher) && (
             <button
               className={view === "review" ? "active" : ""}
-              onClick={() => setView("review")}
+              onClick={() => openView("review")}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -71,7 +107,7 @@ export default function Dashboard({ member }: { member: Member }) {
           {isCore && (
             <button
               className={view === "manage" ? "active" : ""}
-              onClick={() => setView("manage")}
+              onClick={() => openView("manage")}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="3" />
@@ -92,7 +128,7 @@ export default function Dashboard({ member }: { member: Member }) {
                 <li key={m.id}>
                   <button
                     className={m.id === selectedId ? "active" : ""}
-                    onClick={() => setSelectedId(m.id)}
+                    onClick={() => { setSelectedId(m.id); setMenuOpen(false); }}
                   >
                     <span>{m.name}</span>
                     <span className="tag">{m.event_name ?? "Core"}</span>
