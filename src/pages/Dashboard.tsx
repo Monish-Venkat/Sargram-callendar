@@ -3,6 +3,7 @@ import { useViewableMembers } from "../hooks/useSupabase";
 import Calendar from "../components/Calendar";
 import AdminPanel from "./AdminPanel";
 import ReviewDashboard from "../components/ReviewDashboard";
+import Workspace from "../components/Workspace";
 
 type Member = {
   id: string;
@@ -14,7 +15,7 @@ type Member = {
 export default function Dashboard({ member }: { member: Member }) {
   const { data: viewable = [] } = useViewableMembers();
   const [selectedId, setSelectedId] = useState<string>(member.id);
-  const [view, setView] = useState<"calendar" | "review" | "manage">("calendar");
+  const [view, setView] = useState<"calendar" | "workspace" | "review" | "manage">("calendar");
 
   const selected = viewable.find((m) => m.id === selectedId) ?? member;
   const canEditSelected = selected.id === member.id && member.role !== "teacher";
@@ -42,6 +43,15 @@ export default function Dashboard({ member }: { member: Member }) {
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
             Calendar
+          </button>
+          <button
+            className={view === "workspace" ? "active" : ""}
+            onClick={() => setView("workspace")}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 11l3 3L22 4" /><path d="M21 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11" />
+            </svg>
+            Workboard
           </button>
           {(isCore || isTeacher) && (
             <button
@@ -99,6 +109,8 @@ export default function Dashboard({ member }: { member: Member }) {
           <AdminPanel />
         ) : view === "review" && (isCore || isTeacher) ? (
           <ReviewDashboard member={member} />
+        ) : view === "workspace" ? (
+          <Workspace member={member} />
         ) : (
           <Calendar
             key={selected.id}

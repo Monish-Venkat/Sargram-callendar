@@ -22,14 +22,15 @@ export default function Calendar({
   const [month, setMonth] = useState(today.getMonth());
   const [openDate, setOpenDate] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [mediaLink, setMediaLink] = useState("");
 
   const { data: logs = [], isLoading } = useLogsForMember(memberId);
   const upsertLog = useUpsertLog();
   const deleteLog = useDeleteLog();
 
   const logMap = useMemo(() => {
-    const m = new Map<string, { description: string; reviewed?: boolean }>();
-    for (const l of logs) m.set(l.date, { description: l.description, reviewed: l.reviewed });
+    const m = new Map<string, { description: string; reviewed?: boolean; mediaLink?: string | null }>();
+    for (const l of logs) m.set(l.date, { description: l.description, reviewed: l.reviewed, mediaLink: l.media_link });
     return m;
   }, [logs]);
 
@@ -50,15 +51,16 @@ export default function Calendar({
     const key = fmt(year, month, d);
     setOpenDate(key);
     setDraft(logMap.get(key)?.description ?? "");
+    setMediaLink(logMap.get(key)?.mediaLink ?? "");
   }
 
   async function save() {
     if (!openDate) return;
     try {
-      if (draft.trim() === "") {
+      if (draft.trim() === "" && mediaLink.trim() === "") {
         await deleteLog.mutateAsync(openDate);
       } else {
-        await upsertLog.mutateAsync({ date: openDate, description: draft.trim() });
+        await upsertLog.mutateAsync({ date: openDate, description: draft.trim(), mediaLink: mediaLink.trim() });
       }
       setOpenDate(null);
     } catch (error) {
@@ -178,17 +180,18 @@ export default function Calendar({
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="What did you work on today?"
+                  placeholder="What did you work on today? Add as much or as little detail as you need."
                   rows={6}
                   autoFocus
                   className="modal-textarea"
                 />
+                <input className="media-input" type="url" value={mediaLink} onChange={(e) => setMediaLink(e.target.value)} placeholder="Reel, post, Drive, or media link (optional)" />
                 <div className="modal-footer">
-                  <span className="char-count">{draft.length} characters</span>
+                  <span className="char-count">No minimum length</span>
                   <div className="modal-actions">
                     <button className="btn btn-secondary" onClick={() => setOpenDate(null)}>Cancel</button>
                     <button className="btn btn-primary" onClick={save} disabled={upsertLog.isPending || deleteLog.isPending}>
-                      {(upsertLog.isPending || deleteLog.isPending) ? "Saving…" : draft.trim() === "" ? "Delete Entry" : "Save Entry"}
+                      {(upsertLog.isPending || deleteLog.isPending) ? "Saving…" : draft.trim() === "" && mediaLink.trim() === "" ? "Delete Entry" : "Save Entry"}
                     </button>
                   </div>
                 </div>
@@ -199,6 +202,7 @@ export default function Calendar({
                   <>
                     <div className={`readonly-content ${logMap.get(openDate)?.reviewed ? "reviewed" : ""}`}>
                       <pre>{logMap.get(openDate)!.description}</pre>
+                      {logMap.get(openDate)?.mediaLink && <a className="media-link" href={logMap.get(openDate)!.mediaLink!} target="_blank" rel="noreferrer">Open media link ↗</a>}
                     </div>
                     {logMap.get(openDate)?.reviewed && (
                       <div className="review-badge">

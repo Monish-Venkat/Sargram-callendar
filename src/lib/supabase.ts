@@ -43,6 +43,38 @@ export interface TaskLog {
   reviewed: boolean;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  media_link?: string | null;
+}
+
+export type AssignmentStatus = 'todo' | 'in_progress' | 'done';
+
+export interface Assignment {
+  id: string;
+  title: string;
+  description: string;
+  due_date: string | null;
+  status: AssignmentStatus;
+  media_link: string | null;
+  created_at: string;
+  assignee_id: string;
+  assignee_name: string;
+  assignee_role: MemberRole;
+  assigned_by_name: string;
+}
+
+export interface SharedUpdate {
+  id: string;
+  content: string;
+  created_at: string;
+  author_name: string;
+}
+
+export interface Notice {
+  id: string;
+  content: string;
+  created_at: string;
+  sender_name: string;
+  read_at: string | null;
 }
 
 // Extended types with joined member data

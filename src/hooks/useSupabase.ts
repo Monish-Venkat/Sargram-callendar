@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import type { Member, TaskLogWithMember, TaskLog, Event, Invite, MemberRole } from '../lib/supabase';
+import type { Member, TaskLogWithMember, TaskLog, Event, Invite, MemberRole, Assignment, SharedUpdate, Notice } from '../lib/supabase';
 
 // Query keys
 export const queryKeys = {
@@ -12,6 +12,11 @@ export const queryKeys = {
   logsForMember: (memberId: string) => ['logsForMember', memberId] as const,
   pendingReviewLogs: ['pendingReviewLogs'] as const,
   allLogsForReview: (memberId?: string) => ['allLogsForReview', memberId] as const,
+  assignments: ['assignments'] as const,
+  assignableMembers: ['assignableMembers'] as const,
+  sharedUpdates: ['sharedUpdates'] as const,
+  privateNote: ['privateNote'] as const,
+  notices: ['notices'] as const,
 };
 
 // Current member
@@ -154,10 +159,11 @@ export function useLogsForMember(memberId: string | undefined) {
 export function useUpsertLog() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { date: string; description: string }) => {
+    mutationFn: async (args: { date: string; description: string; mediaLink?: string }) => {
       const { data, error } = await supabase.rpc('upsert_task_log', {
         p_date: args.date,
         p_description: args.description,
+        p_media_link: args.mediaLink || null,
       });
       if (error) throw error;
       return data as string;
@@ -242,5 +248,133 @@ export function useBulkReviewLogs() {
       queryClient.invalidateQueries({ queryKey: queryKeys.allLogsForReview() });
       queryClient.invalidateQueries({ queryKey: ['logsForMember'] });
     },
+  });
+}
+
+export function useAssignments() {
+  return useQuery({
+    queryKey: queryKeys.assignments,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('list_assignments');
+      if (error) throw error;
+      return data as Assignment[];
+    },
+  });
+}
+
+export function useAssignableMembers() {
+  return useQuery({
+    queryKey: queryKeys.assignableMembers,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('list_assignable_members');
+      if (error) throw error;
+      return data as Pick<Member, 'id' | 'name' | 'role' | 'event_name'>[];
+    },
+  });
+}
+
+export function useCreateAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { title: string; description: string; assigneeId: string; dueDate?: string; mediaLink?: string }) => {
+      const { error } = await supabase.rpc('create_assignment', {
+        p_title: args.title,
+        p_description: args.description,
+        p_assignee_id: args.assigneeId,
+        p_due_date: args.dueDate || null,
+        p_media_link: args.mediaLink || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.assignments }),
+  });
+}
+
+export function useUpdateAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { taskId: string; status: string; mediaLink?: string }) => {
+      const { error } = await supabase.rpc('update_assignment_status', { p_task_id: args.taskId, p_status: args.status, p_media_link: args.mediaLink || null });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.assignments }),
+  });
+}
+
+export function useSharedUpdates(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.sharedUpdates,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('list_shared_updates');
+      if (error) throw error;
+      return data as SharedUpdate[];
+    },
+    enabled,
+  });
+}
+
+export function useAddSharedUpdate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (content: string) => {
+      const { error } = await supabase.rpc('add_shared_update', { p_content: content });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.sharedUpdates }),
+  });
+}
+
+export function usePrivateNote() {
+  return useQuery({
+    queryKey: queryKeys.privateNote,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_private_note');
+      if (error) throw error;
+      return data as string;
+    },
+  });
+}
+
+export function useSavePrivateNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (content: string) => {
+      const { error } = await supabase.rpc('save_private_note', { p_content: content });
+      if (error) throw error;
+    },
+    onSuccess: (_data, content) => queryClient.setQueryData(queryKeys.privateNote, content),
+  });
+}
+
+export function useNotices() {
+  return useQuery({
+    queryKey: queryKeys.notices,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('list_notifications');
+      if (error) throw error;
+      return data as Notice[];
+    },
+  });
+}
+
+export function useSendNotice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { recipientId: string; content: string }) => {
+      const { error } = await supabase.rpc('send_event_head_notice', { p_recipient_id: args.recipientId, p_content: args.content });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notices }),
+  });
+}
+
+export function useMarkNoticesRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('mark_notifications_read');
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notices }),
   });
 }
