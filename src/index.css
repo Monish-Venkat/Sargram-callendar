@@ -1096,7 +1096,7 @@ body::before {
 .task-actions { min-width: 180px; display: grid; gap: 8px; }
 .task-actions input, .task-actions select { padding: 8px 9px; font-size: 12px; }
 .update-feed { display: grid; gap: 10px; margin-top: 17px; }
-.update-feed article { padding: 14px; background: rgba(255, 214, 147, .04); border-left: 2px solid #d85b24; }
+.update-feed article { padding: 14px; background: rgba(255, 214, 147, .04); border: 1px solid rgba(239,171,70,.13); }
 .update-feed article p { margin: 0 0 7px; color: #eed2ab; white-space: pre-wrap; font-size: 14px; }
 .private-note textarea { width: 100%; display: block; padding: 13px; margin-bottom: 12px; background: rgba(13, 5, 5, .48); border: 1px solid var(--color-border); border-radius: 5px; color: #f7ddac; font: inherit; }
 
@@ -1115,4 +1115,57 @@ body::before {
   .sidebar { padding: 18px 14px; }
   .main-panel { padding: 30px 18px; }
   .cell { min-height: 68px; }
+}
+
+@media (max-width: 720px) {
+  html, body, #root { width: 100%; overflow-x: hidden; }
+  .main-panel { width: 100%; min-width: 0; padding: 24px 12px max(28px, env(safe-area-inset-bottom)); overflow-x: hidden; }
+  .calendar-wrap { width: 100%; min-width: 0; }
+  .calendar-header { align-items: stretch; gap: 18px; padding-bottom: 20px; margin-bottom: 18px; }
+  .calendar-title h2 { font-size: clamp(26px, 8vw, 34px); line-height: 1.08; overflow-wrap: anywhere; }
+  .calendar-title .member-role { display: block; margin-top: 5px; font-size: 11px; }
+  .month-nav { width: 100%; margin-top: 0; gap: 6px; }
+  .nav-btn { width: 44px; height: 44px; flex: 0 0 44px; }
+  .month-label { min-width: 0; padding-inline: 4px; font-size: 17px; }
+  .today-btn { display: none; }
+
+  .calendar-grid { width: 100%; min-width: 0; gap: 5px; }
+  .calendar-grid.weekdays { margin-bottom: 5px; }
+  .weekday { min-width: 0; padding: 5px 0; font-size: 9px; letter-spacing: .08em; }
+  .cell {
+    aspect-ratio: auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 50px;
+    height: clamp(50px, 13vw, 62px);
+    padding: 6px 2px;
+    gap: 4px;
+    font-size: 13px;
+  }
+  .review-check { top: 3px; right: 3px; width: 15px; height: 15px; font-size: 9px; }
+  .log-indicator { width: 6px; height: 6px; }
+  .calendar-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; padding: 13px; margin-top: 14px; }
+  .legend-item { min-width: 0; font-size: 11px; }
+
+  .modal-backdrop { padding: 12px; align-items: flex-end; }
+  .modal { margin: 0; max-height: calc(100dvh - 24px); border-radius: 12px 12px 5px 5px; }
+  .modal-header { padding: 16px 18px; }
+  .modal-textarea { padding: 18px; min-height: 140px; font-size: 16px; }
+  .media-input { min-height: 46px; padding-inline: 18px; font-size: 16px; }
+  .modal-footer { align-items: flex-end; gap: 12px; padding: 14px 18px; }
+  .modal-actions { margin-left: auto; }
+}
+
+@media (max-width: 380px) {
+  .main-panel { padding-inline: 9px; }
+  .calendar-grid { gap: 4px; }
+  .cell { min-height: 46px; height: 48px; }
+  .weekday { font-size: 8px; }
+  .calendar-title h2 { font-size: 25px; }
+  .char-count { display: none; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cell:hover:not(.empty):not(.future):not(:disabled),
+  .btn-primary:hover:not(:disabled) { transform: none; }
 }
