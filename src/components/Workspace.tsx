@@ -6,7 +6,7 @@ import {
   useUpdateAssignment, useTeamUpdates, useAddTeamUpdate,
 } from "../hooks/useSupabase";
 
-type Member = { id: string; name: string; role: MemberRole };
+type Member = { id: string; name: string; role: MemberRole; core_college?: string };
 
 const statusLabel: Record<AssignmentStatus, string> = { todo: "To do", in_progress: "In progress", done: "Done" };
 
@@ -18,7 +18,10 @@ export default function Workspace({ member }: { member: Member }) {
   const canAssign = isCore || member.role === "teacher";
   const { data: assignments = [], isLoading: loadingTasks } = useAssignments();
   const { data: assignees = [] } = useAssignableMembers();
-  const { data: updates = [] } = useSharedUpdates(isCore);
+  const college = member.core_college ?? 'nhce';
+  const [board, setBoard] = useState(college);
+  const visibleBoard = college === 'nhce' ? board : college;
+  const { data: updates = [] } = useSharedUpdates(isCore, visibleBoard);
   const { data: privateNote = "" } = usePrivateNote();
   const { data: notices = [] } = useNotices();
   const createTask = useCreateAssignment();
@@ -55,8 +58,11 @@ export default function Workspace({ member }: { member: Member }) {
   async function submitShared(event: FormEvent) {
     event.preventDefault();
     if (!sharedText.trim()) return;
-    await addUpdate.mutateAsync(sharedText);
-    setSharedText("");
+    try {
+      await addUpdate.mutateAsync(sharedText);
+      setSharedText("");
+      setBoard(college);
+    } catch (error) { setMessage((error as { message?: string }).message ?? 'Could not post Core update'); }
   }
 
   async function submitNotice(event: FormEvent) {
@@ -126,7 +132,8 @@ export default function Workspace({ member }: { member: Member }) {
         </div>
       </section>
 
-      {isCore && <section className="workspace-card"><div className="section-heading"><h3>Core updates</h3><span>Visible only to Core Team members</span></div>
+      {isCore && <section className="workspace-card"><div className="section-heading"><h3>{visibleBoard.toUpperCase()} Core updates</h3><span>Posts go to your college's board. NHCE Core can view all boards.</span></div>
+        {college === 'nhce' && <label>View college <select className="filter-select" value={board} onChange={(e) => setBoard(e.target.value)}>{['nhce','nhcm','nhck'].map((c) => <option key={c} value={c}>{c.toUpperCase()} Core</option>)}</select></label>}
         <form className="workspace-form" onSubmit={submitShared}><textarea value={sharedText} onChange={(e) => setSharedText(e.target.value)} placeholder="Share what changed, what is blocked, or what needs attention…" rows={3} /><button className="btn btn-primary" disabled={addUpdate.isPending}>Post update</button></form>
         <div className="update-feed">{updates.length === 0 ? <p className="muted">No shared updates yet.</p> : updates.map((update) => <article key={update.id}><p>{update.content}</p><small>{update.author_name} · {new Date(update.created_at).toLocaleString()}</small></article>)}</div>
       </section>}

@@ -325,11 +325,22 @@ export function useAddTeamUpdate() {
   });
 }
 
-export function useSharedUpdates(enabled = true) {
+export function useSetCoreCollege() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ memberId, college }: { memberId: string; college: string }) => {
+      const { error } = await supabase.rpc('set_core_college', { p_member_id: memberId, p_college: college });
+      if (error) throw error;
+    },
+    onSuccess: () => client.invalidateQueries(),
+  });
+}
+
+export function useSharedUpdates(enabled = true, college = 'nhce') {
   return useQuery({
-    queryKey: queryKeys.sharedUpdates,
+    queryKey: [...queryKeys.sharedUpdates, college],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('list_shared_updates');
+      const { data, error } = await supabase.rpc('list_college_updates', { p_college: college });
       if (error) throw error;
       return data as SharedUpdate[];
     },

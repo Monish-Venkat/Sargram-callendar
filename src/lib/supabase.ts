@@ -9,6 +9,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type MemberRole = 'event_head' | 'core' | 'teacher';
 
 export interface Member {
+  core_college?: string;
   id: string;
   clerk_id: string;
   email: string;

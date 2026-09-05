@@ -10,6 +10,7 @@ type Member = {
   name: string;
   role: "event_head" | "core" | "teacher";
   eventName?: string;
+  core_college?: string;
 };
 
 export default function Dashboard({ member }: { member: Member }) {
@@ -61,7 +62,7 @@ export default function Dashboard({ member }: { member: Member }) {
         onClick={() => setMenuOpen(false)}
       />
       <aside id="dashboard-navigation" className={`sidebar${menuOpen ? " mobile-open" : ""}`}>
-        <div className="role-badge">{roleLabel(member.role)}</div>
+        <div className="role-badge">{member.role === 'core' ? `${(member.core_college ?? 'nhce').toUpperCase()} Core` : roleLabel(member.role)}</div>
         <div className="member-self">
           {member.name}
           {member.eventName ? ` · ${member.eventName}` : ""}

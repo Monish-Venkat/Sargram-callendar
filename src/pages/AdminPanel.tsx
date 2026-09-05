@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useInvites, useAllMembers, useEvents, useAddInvite, useDeleteInvite, useAddEvent } from "../hooks/useSupabase";
+import { useInvites, useAllMembers, useEvents, useAddInvite, useDeleteInvite, useAddEvent, useSetCoreCollege } from "../hooks/useSupabase";
 
 type Role = "event_head" | "core" | "teacher";
 
@@ -11,6 +11,7 @@ export default function AdminPanel() {
   const addInvite = useAddInvite();
   const removeInvite = useDeleteInvite();
   const addEvent = useAddEvent();
+  const switchCollege = useSetCoreCollege();
 
   const [form, setForm] = useState({
     email: "",
@@ -146,6 +147,10 @@ export default function AdminPanel() {
               <span>
                 {m.name} — {m.email} · {roleLabel(m.role)}
                 {m.event_name ? ` · ${m.event_name}` : ""}
+                {m.role === 'core' && <label> Core college <select className="filter-select" aria-label={`Core college for ${m.name}`} value={m.core_college ?? 'nhce'} disabled={switchCollege.isPending} onChange={async (e) => {
+                  try { await switchCollege.mutateAsync({ memberId: m.id, college: e.target.value }); setStatus('Core college updated. Refresh the member’s workspace to load their new college.'); }
+                  catch (error) { setStatus((error as { message?: string }).message ?? 'Could not change college'); }
+                }}>{['nhce','nhcm','nhck'].map((c) => <option key={c} value={c}>{c.toUpperCase()} Core</option>)}</select></label>}
               </span>
             </li>
           ))}
