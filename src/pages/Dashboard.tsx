@@ -18,6 +18,10 @@ export default function Dashboard({ member }: { member: Member }) {
   const [selectedId, setSelectedId] = useState<string>(member.id);
   const [view, setView] = useState<"calendar" | "workspace" | "review" | "manage">("calendar");
   const [menuOpen, setMenuOpen] = useState(false);
+  const ownCollege = member.core_college ?? 'nhce';
+  const [calendarCollege, setCalendarCollege] = useState(ownCollege);
+  const [sharedCalendar, setSharedCalendar] = useState(true);
+  const activeCollege = ownCollege === 'nhce' ? calendarCollege : ownCollege;
 
   const selected = viewable.find((m) => m.id === selectedId) ?? member;
   const canEditSelected = selected.id === member.id && member.role !== "teacher";
@@ -119,6 +123,10 @@ export default function Dashboard({ member }: { member: Member }) {
           )}
         </nav>
 
+        {view === 'calendar' && isCore && <div className="member-list">
+          <div className="sidebar-title">Shared Core calendars</div>
+          {(ownCollege === 'nhce' ? ['nhce', 'nhcm', 'nhck'] : [ownCollege]).map((college) => <button key={college} className={sharedCalendar && activeCollege === college ? 'active' : ''} onClick={() => { setCalendarCollege(college); setSharedCalendar(true); setMenuOpen(false); }}>{college.toUpperCase()} Core{college !== ownCollege ? ' · Read only' : ''}</button>)}
+        </div>}
         {view === "calendar" && viewable.length > 1 && (
           <>
             <div className="sidebar-title">
@@ -129,7 +137,7 @@ export default function Dashboard({ member }: { member: Member }) {
                 <li key={m.id}>
                   <button
                     className={m.id === selectedId ? "active" : ""}
-                    onClick={() => { setSelectedId(m.id); setMenuOpen(false); }}
+                    onClick={() => { setSelectedId(m.id); setSharedCalendar(false); setMenuOpen(false); }}
                   >
                     <span>{m.name}</span>
                     <span className="tag">{m.event_name ?? "Core"}</span>
@@ -148,6 +156,8 @@ export default function Dashboard({ member }: { member: Member }) {
           <ReviewDashboard member={member} />
         ) : view === "workspace" ? (
           <Workspace member={member} />
+        ) : isCore && sharedCalendar ? (
+          <Calendar key={activeCollege} memberId={member.id} memberName={member.name} college={activeCollege} editable={activeCollege === ownCollege} />
         ) : (
           <Calendar
             key={selected.id}

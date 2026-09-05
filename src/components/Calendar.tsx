@@ -12,10 +12,12 @@ export default function Calendar({
   memberId,
   memberName,
   editable,
+  college,
 }: {
   memberId: string;
   memberName: string;
   editable: boolean;
+  college?: string;
 }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -24,8 +26,10 @@ export default function Calendar({
   const [draft, setDraft] = useState("");
   const [mediaLink, setMediaLink] = useState("");
 
-  const { data: logs = [], isLoading } = useLogsForMember(memberId);
-  const upsertLog = useUpsertLog();
+  const [version, setVersion] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState('');
+  const { data: logs = [], isLoading, error: loadError } = useLogsForMember(memberId, college);
+  const upsertLog = useUpsertLog(college);
   const deleteLog = useDeleteLog();
 
   const logMap = useMemo(() => {
@@ -47,24 +51,26 @@ export default function Calendar({
   }
 
   function openDay(d: number) {
-    if (!editable) return;
     const key = fmt(year, month, d);
     setOpenDate(key);
+    setVersion(logs.find((entry) => entry.date === key)?.updated_at ?? null);
+    setSaveError('');
     setDraft(logMap.get(key)?.description ?? "");
     setMediaLink(logMap.get(key)?.mediaLink ?? "");
   }
 
   async function save() {
-    if (!openDate) return;
+    if (!openDate || !editable) return;
     try {
-      if (draft.trim() === "" && mediaLink.trim() === "") {
+      if (!college && draft.trim() === "" && mediaLink.trim() === "") {
         await deleteLog.mutateAsync(openDate);
       } else {
-        await upsertLog.mutateAsync({ date: openDate, description: draft.trim(), mediaLink: mediaLink.trim() });
+        await upsertLog.mutateAsync({ date: openDate, description: draft.trim(), mediaLink: mediaLink.trim(), version });
       }
       setOpenDate(null);
     } catch (error) {
       console.error("Failed to save:", error);
+      setSaveError((error as { message?: string }).message ?? 'Could not save. Please try again.');
     }
   }
 
@@ -89,13 +95,14 @@ export default function Calendar({
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [openDate]);
+  }, [openDate, draft, mediaLink, version, editable]);
 
   return (
     <div className="calendar-wrap">
+      {loadError && <p role="alert">Calendar could not load. Please refresh and try again.</p>}
       <div className="calendar-header">
         <div className="calendar-title">
-          <h2>{memberName}&apos;s Task Log</h2>
+          <h2>{college ? `${college.toUpperCase()} Core Calendar` : `${memberName}'s Task Log`}</h2>
           <span className="member-role">Daily Activity Calendar</span>
         </div>
         <div className="month-nav">
@@ -138,10 +145,10 @@ export default function Calendar({
               key={i}
               className={`cell${has ? " has-log" : ""}${isToday ? " today" : ""}${isAfterDeadline ? " future" : ""}${isReviewed ? " reviewed" : ""}`}
               onClick={() => openDay(d)}
-              disabled={!editable || isAfterDeadline}
+              disabled={isLoading || !!loadError || (editable && isAfterDeadline)}
               aria-label={key}
               role="gridcell"
-              tabIndex={editable && !isAfterDeadline ? 0 : -1}
+              tabIndex={0}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openDay(d); }}
             >
               <span className="date-num">{d}</span>
@@ -177,6 +184,7 @@ export default function Calendar({
             </div>
             {editable ? (
               <>
+                {saveError && <p role="alert">{saveError}</p>}
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}

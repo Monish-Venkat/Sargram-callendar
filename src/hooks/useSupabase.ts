@@ -143,24 +143,25 @@ export function useAddEvent() {
 }
 
 // Task logs for a member
-export function useLogsForMember(memberId: string | undefined) {
+export function useLogsForMember(memberId: string | undefined, college?: string) {
   return useQuery({
-    queryKey: memberId ? queryKeys.logsForMember(memberId) : ['logsForMember', 'none'],
+    queryKey: ['logsForMember', college ?? memberId, college ? 'college' : 'personal'],
     queryFn: async () => {
       if (!memberId) return [];
-      const { data, error } = await supabase.rpc('get_logs_for_member', { p_member_id: memberId });
+      const { data, error } = college ? await supabase.rpc('get_college_calendar', { p_college: college }) : await supabase.rpc('get_logs_for_member', { p_member_id: memberId });
       if (error) throw error;
       return data as TaskLog[];
     },
     enabled: !!memberId,
+    refetchInterval: college ? 30000 : false,
   });
 }
 
-export function useUpsertLog() {
+export function useUpsertLog(college?: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { date: string; description: string; mediaLink?: string }) => {
-      const { data, error } = await supabase.rpc('upsert_task_log', {
+    mutationFn: async (args: { date: string; description: string; mediaLink?: string; version?: string | null }) => {
+      const { data, error } = college ? await supabase.rpc('save_college_calendar', { p_college: college, p_date: args.date, p_description: args.description, p_media_link: args.mediaLink || null, p_version: args.version ?? null }) : await supabase.rpc('upsert_task_log', {
         p_date: args.date,
         p_description: args.description,
         p_media_link: args.mediaLink || null,
