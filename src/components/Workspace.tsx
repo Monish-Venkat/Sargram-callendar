@@ -3,7 +3,7 @@ import type { AssignmentStatus, MemberRole } from "../lib/supabase";
 import {
   useAddSharedUpdate, useAssignments, useAssignableMembers, useCreateAssignment,
   useMarkNoticesRead, useNotices, usePrivateNote, useSavePrivateNote, useSendNotice, useSharedUpdates,
-  useUpdateAssignment,
+  useUpdateAssignment, useTeamUpdates, useAddTeamUpdate,
 } from "../hooks/useSupabase";
 
 type Member = { id: string; name: string; role: MemberRole };
@@ -12,6 +12,9 @@ const statusLabel: Record<AssignmentStatus, string> = { todo: "To do", in_progre
 
 export default function Workspace({ member }: { member: Member }) {
   const isCore = member.role === "core";
+  const teamUpdates = useTeamUpdates();
+  const postTeamUpdate = useAddTeamUpdate();
+  const [teamText, setTeamText] = useState("");
   const canAssign = isCore || member.role === "teacher";
   const { data: assignments = [], isLoading: loadingTasks } = useAssignments();
   const { data: assignees = [] } = useAssignableMembers();
@@ -72,6 +75,22 @@ export default function Workspace({ member }: { member: Member }) {
         <div><p className="eyebrow">SARGAM operations</p><h2>Workboard</h2><p>Tasks, updates, and your personal working space.</p></div>
         {message && <span className="workspace-flash">{message}</span>}
       </header>
+
+      <section className="workspace-card" aria-labelledby="team-updates-heading">
+        <div className="section-heading"><h3 id="team-updates-heading">Team updates</h3><span>Everyone on the team can read and post</span></div>
+        <form className="workspace-form" onSubmit={async (event) => {
+          event.preventDefault();
+          if (!teamText.trim() || postTeamUpdate.isPending) return;
+          try { await postTeamUpdate.mutateAsync(teamText.trim()); setTeamText(""); } catch { /* Mutation error is displayed below; preserve the draft. */ }
+        }}>
+          <textarea aria-label="Team update" value={teamText} onChange={(event) => setTeamText(event.target.value)} placeholder="Share progress, announcements, or anything the whole team should know…" rows={3} />
+          <button className="btn btn-primary" disabled={postTeamUpdate.isPending || !teamText.trim()}>{postTeamUpdate.isPending ? "Posting…" : "Post team update"}</button>
+          {postTeamUpdate.isError && <p role="alert">Could not post your update. Your draft is saved here; please try again.</p>}
+        </form>
+        <div className="update-feed" aria-live="polite">
+          {teamUpdates.isPending ? <p>Loading team updates…</p> : teamUpdates.isError ? <p role="alert">Team updates could not load. <button className="btn btn-secondary" onClick={() => void teamUpdates.refetch()}>Retry</button></p> : teamUpdates.data?.length ? teamUpdates.data.map((update) => <article key={update.id}><p>{update.content}</p><small>{update.author_name} · {new Date(update.created_at).toLocaleString()}</small></article>) : <p>No team updates yet. Share the first update.</p>}
+        </div>
+      </section>
 
       {canAssign && <section className="workspace-card assignment-composer">
         <div className="section-heading"><h3>Assign a task</h3><span>{isCore ? "Core → Core / Event Heads" : "Teacher → Core"}</span></div>

@@ -301,6 +301,30 @@ export function useUpdateAssignment() {
   });
 }
 
+export function useTeamUpdates() {
+  return useQuery({
+    queryKey: ['teamUpdates'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('list_team_updates');
+      if (error) throw error;
+      return data as SharedUpdate[];
+    },
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useAddTeamUpdate() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (content: string) => {
+      const { error } = await supabase.rpc('add_team_update', { p_content: content });
+      if (error) throw error;
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: ['teamUpdates'] }),
+  });
+}
+
 export function useSharedUpdates(enabled = true) {
   return useQuery({
     queryKey: queryKeys.sharedUpdates,
