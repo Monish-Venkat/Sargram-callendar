@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import type { AssignmentStatus, MemberRole } from "../lib/supabase";
 import {
   useAddSharedUpdate, useAssignments, useAssignableMembers, useCreateAssignment,
-  useMarkNoticesRead, useNotices, usePrivateNote, useSavePrivateNote, useSendNotice, useSharedUpdates,
+  useMarkNoticesRead, useMessageRecipients, useNotices, usePrivateNote, useSavePrivateNote, useSendDirectMessage, useSharedUpdates,
   useUpdateAssignment, useTeamUpdates, useAddTeamUpdate,
 } from "../hooks/useSupabase";
 
@@ -24,17 +24,18 @@ export default function Workspace({ member }: { member: Member }) {
   const { data: updates = [] } = useSharedUpdates(isCore, visibleBoard);
   const { data: privateNote = "" } = usePrivateNote();
   const { data: notices = [] } = useNotices();
+  const { data: messageRecipients = [] } = useMessageRecipients();
   const createTask = useCreateAssignment();
   const updateTask = useUpdateAssignment();
   const addUpdate = useAddSharedUpdate();
   const savePrivate = useSavePrivateNote();
-  const sendNotice = useSendNotice();
+  const sendDirectMessage = useSendDirectMessage();
   const markNoticesRead = useMarkNoticesRead();
 
   const [task, setTask] = useState({ title: "", description: "", assigneeId: "", dueDate: "", mediaLink: "" });
   const [sharedText, setSharedText] = useState("");
   const [note, setNote] = useState("");
-  const [notice, setNotice] = useState({ recipientId: "", content: "" });
+  const [directMessage, setDirectMessage] = useState({ recipientId: "", content: "" });
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => setNote(privateNote), [privateNote]);
@@ -65,14 +66,14 @@ export default function Workspace({ member }: { member: Member }) {
     } catch (error) { setMessage((error as { message?: string }).message ?? 'Could not post Core update'); }
   }
 
-  async function submitNotice(event: FormEvent) {
+  async function submitDirectMessage(event: FormEvent) {
     event.preventDefault();
-    if (!notice.recipientId || !notice.content.trim()) return;
+    if (!directMessage.recipientId || !directMessage.content.trim()) return;
     try {
-      await sendNotice.mutateAsync(notice);
-      setNotice({ recipientId: "", content: "" });
-      setMessage("Event Head notified.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not send notice."); }
+      await sendDirectMessage.mutateAsync(directMessage);
+      setDirectMessage({ recipientId: "", content: "" });
+      setMessage("Message sent.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not send message."); }
   }
 
   return (
@@ -138,11 +139,10 @@ export default function Workspace({ member }: { member: Member }) {
         <div className="update-feed">{updates.length === 0 ? <p className="muted">No shared updates yet.</p> : updates.map((update) => <article key={update.id}><p>{update.content}</p><small>{update.author_name} · {new Date(update.created_at).toLocaleString()}</small></article>)}</div>
       </section>}
 
-      {isCore && <section className="workspace-card"><div className="section-heading"><h3>Notify an Event Head</h3><span>Direct in-app notice</span></div>
-        <form className="workspace-form notice-form" onSubmit={submitNotice}><select value={notice.recipientId} onChange={(e) => setNotice({ ...notice, recipientId: e.target.value })} required><option value="">Choose an Event Head</option>{assignees.filter((person) => person.role === "event_head").map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}</select><textarea value={notice.content} onChange={(e) => setNotice({ ...notice, content: e.target.value })} placeholder="Write the notice…" rows={3} required /><button className="btn btn-primary" disabled={sendNotice.isPending}>Send notice</button></form>
+      {(isCore || member.role === "event_head") && <section className="workspace-card"><div className="section-heading"><h3>Direct messages</h3><span>Private Core ↔ Event Head communication</span></div>
+        <form className="workspace-form notice-form" onSubmit={submitDirectMessage}><select value={directMessage.recipientId} onChange={(e) => setDirectMessage({ ...directMessage, recipientId: e.target.value })} required><option value="">{isCore ? "Choose an Event Head" : "Choose a Core member"}</option>{messageRecipients.map((person) => <option value={person.id} key={person.id}>{person.name}{person.event_name ? ` · ${person.event_name}` : ""}</option>)}</select><textarea value={directMessage.content} onChange={(e) => setDirectMessage({ ...directMessage, content: e.target.value })} placeholder="Write a private message…" rows={3} required /><button className="btn btn-primary" disabled={sendDirectMessage.isPending || !messageRecipients.length}>{sendDirectMessage.isPending ? "Sending…" : "Send message"}</button></form>
+        <div className="update-feed">{notices.length === 0 ? <p className="muted">No messages received yet.</p> : notices.map((item) => <article key={item.id}><p>{item.content}</p><small>{item.sender_name} · {new Date(item.created_at).toLocaleString()}</small></article>)}</div>
       </section>}
-
-      {member.role === "event_head" && <section className="workspace-card"><div className="section-heading"><h3>Core notices</h3><span>Messages from the Core Team</span></div><div className="update-feed">{notices.length === 0 ? <p className="muted">No notices yet.</p> : notices.map((item) => <article key={item.id}><p>{item.content}</p><small>{item.sender_name} · {new Date(item.created_at).toLocaleString()}</small></article>)}</div></section>}
 
       <section className="workspace-card private-note"><div className="section-heading"><h3>My private notepad</h3><span>Only you can see this</span></div><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Keep personal reminders, rough notes, or ideas here…" rows={7} /><div><button className="btn btn-secondary" onClick={() => void savePrivate.mutateAsync(note)} disabled={savePrivate.isPending}>{savePrivate.isPending ? "Saving…" : "Save private note"}</button></div></section>
     </div>

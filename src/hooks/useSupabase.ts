@@ -405,6 +405,31 @@ export function useSendNotice() {
   });
 }
 
+export function useMessageRecipients() {
+  return useQuery({
+    queryKey: ['messageRecipients'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('list_message_recipients');
+      if (error) throw error;
+      return data as Pick<Member, 'id' | 'name' | 'role' | 'event_name'>[];
+    },
+  });
+}
+
+export function useSendDirectMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { recipientId: string; content: string }) => {
+      const { error } = await supabase.rpc('send_direct_message', {
+        p_recipient_id: args.recipientId,
+        p_content: args.content,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.notices }),
+  });
+}
+
 export function useMarkNoticesRead() {
   const queryClient = useQueryClient();
   return useMutation({
