@@ -4,6 +4,7 @@ import Calendar from "../components/Calendar";
 import AdminPanel from "./AdminPanel";
 import ReviewDashboard from "../components/ReviewDashboard";
 import Workspace from "../components/Workspace";
+import MessageCenter from "../components/MessageCenter";
 
 type Member = {
   id: string;
@@ -16,7 +17,7 @@ type Member = {
 export default function Dashboard({ member }: { member: Member }) {
   const { data: viewable = [] } = useViewableMembers();
   const [selectedId, setSelectedId] = useState<string>(member.id);
-  const [view, setView] = useState<"calendar" | "workspace" | "review" | "manage">("calendar");
+  const [view, setView] = useState<"calendar" | "workspace" | "messages" | "review" | "manage">("calendar");
   const [menuOpen, setMenuOpen] = useState(false);
   const ownCollege = member.core_college ?? 'nhce';
   const [calendarCollege, setCalendarCollege] = useState(ownCollege);
@@ -96,6 +97,10 @@ export default function Dashboard({ member }: { member: Member }) {
             </svg>
             Workboard
           </button>
+          {(isCore || member.role === "event_head") && <button className={view === "messages" ? "active" : ""} onClick={() => openView("messages")}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 9.7 9.7 0 0 1-4.5-1.1L3 20l1.3-4A8.5 8.5 0 1 1 21 11.5Z" /><path d="M8 11h.01M12 11h.01M16 11h.01" /></svg>
+            Messages
+          </button>}
           {(isCore || isTeacher) && (
             <button
               className={view === "review" ? "active" : ""}
@@ -158,6 +163,8 @@ export default function Dashboard({ member }: { member: Member }) {
           <ReviewDashboard member={member} />
         ) : view === "workspace" ? (
           <Workspace member={member} />
+        ) : view === "messages" && (isCore || member.role === "event_head") ? (
+          <MessageCenter member={member} />
         ) : canViewCoreCalendars && sharedCalendar ? (
           <Calendar key={activeCollege} memberId={member.id} memberName={member.name} college={activeCollege} editable={isCore && activeCollege === ownCollege} />
         ) : (

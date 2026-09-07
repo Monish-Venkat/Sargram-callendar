@@ -1100,12 +1100,37 @@ body::before {
 .update-feed article p { margin: 0 0 7px; color: #eed2ab; white-space: pre-wrap; font-size: 14px; }
 .private-note textarea { width: 100%; display: block; padding: 13px; margin-bottom: 12px; background: rgba(13, 5, 5, .48); border: 1px solid var(--color-border); border-radius: 5px; color: #f7ddac; font: inherit; }
 
+/* Private messages live outside the operational workboard. */
+.message-center { max-width: 1080px; margin: 0 auto; }
+.message-header { padding-bottom: 24px; border-bottom: 1px solid var(--color-border); }
+.message-header h2 { margin: 0; color: #fff0ce; font: 42px/1 var(--font-display); letter-spacing: -.035em; }
+.message-header p, .message-inbox-heading p { margin: 7px 0 0; color: var(--color-text-muted); }
+.message-layout { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.35fr); gap: 22px; padding-top: 22px; align-items: start; }
+.message-compose, .message-inbox { background: linear-gradient(145deg, rgba(45, 18, 13, .88), rgba(27, 10, 9, .82)); border: 1px solid var(--color-border); border-radius: 8px; padding: 22px; }
+.message-compose { display: grid; gap: 13px; }
+.message-compose h3, .message-inbox h3 { margin: 0; font: 25px/1.05 var(--font-display); color: #ffe1a1; }
+.message-compose label { display: grid; gap: 7px; color: #d6b688; font-size: 12px; font-weight: 700; }
+.message-compose select, .message-compose textarea { width: 100%; background: rgba(13, 5, 5, .48); border: 1px solid var(--color-border); border-radius: 5px; padding: 11px 13px; color: #f7ddac; font: inherit; }
+.message-compose textarea { resize: vertical; min-height: 150px; }
+.message-compose select:focus, .message-compose textarea:focus { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.message-compose .btn { justify-self: start; }
+.message-inbox-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding-bottom: 17px; border-bottom: 1px solid rgba(239,171,70,.13); }
+.message-feed { display: grid; gap: 10px; padding-top: 15px; }
+.message-feed article { padding: 15px 0; border-bottom: 1px solid rgba(239,171,70,.1); }
+.message-feed article:last-child { border-bottom: 0; }
+.message-feed p { margin: 0 0 7px; color: #eed2ab; white-space: pre-wrap; font-size: 14px; }
+.message-feed small { color: #a8795a; font-size: 11px; }
+.message-error { margin: 0; color: #ffb08b; font-size: 12px; }
+
 @media (max-width: 720px) {
   .workspace-card { padding: 18px; }
   .workspace-header, .section-heading { align-items: flex-start; flex-direction: column; }
   .task-form { grid-template-columns: 1fr; }
   .task-item { flex-direction: column; }
   .task-actions { width: 100%; min-width: 0; }
+  .message-layout { grid-template-columns: 1fr; gap: 16px; }
+  .message-header h2 { font-size: 34px; }
+  .message-compose, .message-inbox { padding: 18px; }
 }
 
 @media (max-width: 720px) {

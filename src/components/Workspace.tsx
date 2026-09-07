@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import type { AssignmentStatus, MemberRole } from "../lib/supabase";
 import {
   useAddSharedUpdate, useAssignments, useAssignableMembers, useCreateAssignment,
-  useMarkNoticesRead, useMessageRecipients, useNotices, usePrivateNote, useSavePrivateNote, useSendDirectMessage, useSharedUpdates,
+  usePrivateNote, useSavePrivateNote, useSharedUpdates,
   useUpdateAssignment, useTeamUpdates, useAddTeamUpdate,
 } from "../hooks/useSupabase";
 
@@ -23,28 +23,20 @@ export default function Workspace({ member }: { member: Member }) {
   const visibleBoard = college === 'nhce' ? board : college;
   const { data: updates = [] } = useSharedUpdates(isCore, visibleBoard);
   const { data: privateNote = "" } = usePrivateNote();
-  const { data: notices = [] } = useNotices();
-  const { data: messageRecipients = [] } = useMessageRecipients();
   const createTask = useCreateAssignment();
   const updateTask = useUpdateAssignment();
   const addUpdate = useAddSharedUpdate();
   const savePrivate = useSavePrivateNote();
-  const sendDirectMessage = useSendDirectMessage();
-  const markNoticesRead = useMarkNoticesRead();
 
   const [task, setTask] = useState({ title: "", description: "", assigneeId: "", dueDate: "", mediaLink: "" });
   const [sharedText, setSharedText] = useState("");
   const [note, setNote] = useState("");
-  const [directMessage, setDirectMessage] = useState({ recipientId: "", content: "" });
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => setNote(privateNote), [privateNote]);
   useEffect(() => {
     if (assignees.length && !task.assigneeId) setTask((current) => ({ ...current, assigneeId: assignees[0].id }));
   }, [assignees, task.assigneeId]);
-  useEffect(() => {
-    if (member.role === "event_head" && notices.some((item) => !item.read_at)) void markNoticesRead.mutateAsync();
-  }, [member.role, notices, markNoticesRead]);
 
   async function submitTask(event: FormEvent) {
     event.preventDefault();
@@ -64,16 +56,6 @@ export default function Workspace({ member }: { member: Member }) {
       setSharedText("");
       setBoard(college);
     } catch (error) { setMessage((error as { message?: string }).message ?? 'Could not post Core update'); }
-  }
-
-  async function submitDirectMessage(event: FormEvent) {
-    event.preventDefault();
-    if (!directMessage.recipientId || !directMessage.content.trim()) return;
-    try {
-      await sendDirectMessage.mutateAsync(directMessage);
-      setDirectMessage({ recipientId: "", content: "" });
-      setMessage("Message sent.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not send message."); }
   }
 
   return (
@@ -137,11 +119,6 @@ export default function Workspace({ member }: { member: Member }) {
         {college === 'nhce' && <label>View college <select className="filter-select" value={board} onChange={(e) => setBoard(e.target.value)}>{['nhce','nhcm','nhck'].map((c) => <option key={c} value={c}>{c.toUpperCase()} Core</option>)}</select></label>}
         <form className="workspace-form" onSubmit={submitShared}><textarea value={sharedText} onChange={(e) => setSharedText(e.target.value)} placeholder="Share what changed, what is blocked, or what needs attention…" rows={3} /><button className="btn btn-primary" disabled={addUpdate.isPending}>Post update</button></form>
         <div className="update-feed">{updates.length === 0 ? <p className="muted">No shared updates yet.</p> : updates.map((update) => <article key={update.id}><p>{update.content}</p><small>{update.author_name} · {new Date(update.created_at).toLocaleString()}</small></article>)}</div>
-      </section>}
-
-      {(isCore || member.role === "event_head") && <section className="workspace-card"><div className="section-heading"><h3>Direct messages</h3><span>Private Core ↔ Event Head communication</span></div>
-        <form className="workspace-form notice-form" onSubmit={submitDirectMessage}><select value={directMessage.recipientId} onChange={(e) => setDirectMessage({ ...directMessage, recipientId: e.target.value })} required><option value="">{isCore ? "Choose an Event Head" : "Choose a Core member"}</option>{messageRecipients.map((person) => <option value={person.id} key={person.id}>{person.name}{person.event_name ? ` · ${person.event_name}` : ""}</option>)}</select><textarea value={directMessage.content} onChange={(e) => setDirectMessage({ ...directMessage, content: e.target.value })} placeholder="Write a private message…" rows={3} required /><button className="btn btn-primary" disabled={sendDirectMessage.isPending || !messageRecipients.length}>{sendDirectMessage.isPending ? "Sending…" : "Send message"}</button></form>
-        <div className="update-feed">{notices.length === 0 ? <p className="muted">No messages received yet.</p> : notices.map((item) => <article key={item.id}><p>{item.content}</p><small>{item.sender_name} · {new Date(item.created_at).toLocaleString()}</small></article>)}</div>
       </section>}
 
       <section className="workspace-card private-note"><div className="section-heading"><h3>My private notepad</h3><span>Only you can see this</span></div><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Keep personal reminders, rough notes, or ideas here…" rows={7} /><div><button className="btn btn-secondary" onClick={() => void savePrivate.mutateAsync(note)} disabled={savePrivate.isPending}>{savePrivate.isPending ? "Saving…" : "Save private note"}</button></div></section>
