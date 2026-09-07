@@ -63,10 +63,11 @@ function AuthScreen() {
     setMessage(null);
     const credentials = { email: email.trim().toLowerCase(), password };
     if (mode === "signUp") {
-      const { data: eligible, error: eligibilityError } = await supabase.rpc("can_create_password_account", { p_email: credentials.email });
-      if (eligibilityError || !eligible) {
+      const { data: signupStatus, error: eligibilityError } = await supabase.rpc("get_password_signup_status", { p_email: credentials.email });
+      if (eligibilityError || signupStatus !== "eligible") {
         setSubmitting(false);
-        setMessage("This email is not on the approved member list, or it already has an account. Sign in if you have already created a password.");
+        if (signupStatus === "account_exists") setMessage("An account for this email already exists. Sign in with its password. If it is forgotten, ask the Supabase administrator to reset it.");
+        else setMessage("This exact email is not on the approved member list. Ask NHCE Core to check the spelling in Manage Team, then try again.");
         return;
       }
     }
