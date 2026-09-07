@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useInvites, useAllMembers, useEvents, useAddInvite, useDeleteInvite, useAddEvent, useSetCoreCollege } from "../hooks/useSupabase";
 
-type Role = "event_head" | "core" | "teacher";
+type MemberRole = "event_head" | "core" | "teacher";
+type RoleChoice = MemberRole | "nhce_core" | "nhcm_core" | "nhck_core";
+
+const coreCollegeFor = (role: RoleChoice) => role.endsWith("_core") ? role.replace("_core", "") : undefined;
+const memberRoleFor = (role: RoleChoice): MemberRole => coreCollegeFor(role) ? "core" : role as MemberRole;
 
 export default function AdminPanel() {
   const { data: invites = [] } = useInvites();
@@ -16,7 +20,7 @@ export default function AdminPanel() {
   const [form, setForm] = useState({
     email: "",
     name: "",
-    role: "event_head" as Role,
+    role: "event_head" as RoleChoice,
     eventName: "",
   });
   const [newEventName, setNewEventName] = useState("");
@@ -26,13 +30,16 @@ export default function AdminPanel() {
     e.preventDefault();
     setStatus(null);
     try {
+      const memberRole = memberRoleFor(form.role);
+      const coreCollege = coreCollegeFor(form.role);
       await addInvite.mutateAsync({
         email: form.email.trim().toLowerCase(),
         name: form.name.trim(),
-        role: form.role,
-        eventName: form.role === "event_head" ? form.eventName.trim() : undefined,
+        role: memberRole,
+        coreCollege,
+        eventName: memberRole === "event_head" ? form.eventName.trim() : undefined,
       });
-      setStatus(`Added ${form.name || form.email} as ${roleLabel(form.role)}. They can now sign in.`);
+      setStatus(`Added ${form.name || form.email} as ${roleLabel(memberRole, coreCollege)}. They can now sign in.`);
       setForm({ email: "", name: "", role: "event_head", eventName: "" });
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Something went wrong");
@@ -67,10 +74,12 @@ export default function AdminPanel() {
           />
           <select
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+            onChange={(e) => setForm({ ...form, role: e.target.value as RoleChoice })}
           >
             <option value="event_head">Event Head</option>
-            <option value="core">Core Team</option>
+            <option value="nhce_core">NHCE Core</option>
+            <option value="nhcm_core">NHCM Core</option>
+            <option value="nhck_core">NHCK Core</option>
             <option value="teacher">Teacher In-charge</option>
           </select>
           {form.role === "event_head" && (
@@ -127,7 +136,7 @@ export default function AdminPanel() {
           {invites.map((inv) => (
             <li key={inv.id}>
               <span>
-                {inv.name} — {inv.email} · {roleLabel(inv.role)}
+                {inv.name} — {inv.email} · {roleLabel(inv.role, inv.core_college)}
                 {inv.event_name ? ` · ${inv.event_name}` : ""}
               </span>
               <button className="link-btn" onClick={() => removeInvite.mutate(inv.id)} disabled={removeInvite.isPending}>
@@ -145,7 +154,7 @@ export default function AdminPanel() {
           {members.map((m) => (
             <li key={m.id}>
               <span>
-                {m.name} — {m.email} · {roleLabel(m.role)}
+                {m.name} — {m.email} · {roleLabel(m.role, m.core_college)}
                 {m.event_name ? ` · ${m.event_name}` : ""}
                 {m.role === 'core' && <label> Core college <select className="filter-select" aria-label={`Core college for ${m.name}`} value={m.core_college ?? 'nhce'} disabled={switchCollege.isPending} onChange={async (e) => {
                   try { await switchCollege.mutateAsync({ memberId: m.id, college: e.target.value }); setStatus('Core college updated. Refresh the member’s workspace to load their new college.'); }
@@ -161,8 +170,8 @@ export default function AdminPanel() {
   );
 }
 
-function roleLabel(role: Role) {
+function roleLabel(role: MemberRole, coreCollege?: string | null) {
   if (role === "teacher") return "Teacher In-charge";
-  if (role === "core") return "Core Team";
+  if (role === "core") return `${(coreCollege ?? "nhce").toUpperCase()} Core`;
   return "Event Head";
 }

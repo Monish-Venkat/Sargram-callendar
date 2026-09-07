@@ -74,12 +74,13 @@ export function useInvites() {
 export function useAddInvite() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { email: string; name: string; role: MemberRole; eventName?: string }) => {
+    mutationFn: async (args: { email: string; name: string; role: MemberRole; eventName?: string; coreCollege?: string }) => {
       const { error } = await supabase.rpc('add_invite', {
         p_email: args.email,
         p_name: args.name,
         p_role: args.role,
         p_event_name: args.eventName ?? null,
+        p_core_college: args.coreCollege ?? null,
       });
       if (error) throw error;
     },

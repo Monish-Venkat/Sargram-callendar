@@ -26,6 +26,8 @@ export default function Dashboard({ member }: { member: Member }) {
   const selected = viewable.find((m) => m.id === selectedId) ?? member;
   const canEditSelected = selected.id === member.id && member.role !== "teacher";
   const isCore = member.role === "core";
+  const isNhceCore = isCore && ownCollege === 'nhce';
+  const canViewCoreCalendars = isCore || member.role === 'event_head';
   const isTeacher = member.role === "teacher";
 
   useEffect(() => {
@@ -109,7 +111,7 @@ export default function Dashboard({ member }: { member: Member }) {
               Review Logs
             </button>
           )}
-          {isCore && (
+          {isNhceCore && (
             <button
               className={view === "manage" ? "active" : ""}
               onClick={() => openView("manage")}
@@ -123,9 +125,9 @@ export default function Dashboard({ member }: { member: Member }) {
           )}
         </nav>
 
-        {view === 'calendar' && isCore && <div className="member-list">
+        {view === 'calendar' && canViewCoreCalendars && <div className="member-list">
           <div className="sidebar-title">Shared Core calendars</div>
-          {(ownCollege === 'nhce' ? ['nhce', 'nhcm', 'nhck'] : [ownCollege]).map((college) => <button key={college} className={sharedCalendar && activeCollege === college ? 'active' : ''} onClick={() => { setCalendarCollege(college); setSharedCalendar(true); setMenuOpen(false); }}>{college.toUpperCase()} Core{college !== ownCollege ? ' · Read only' : ''}</button>)}
+          {(member.role === 'event_head' || ownCollege === 'nhce' ? ['nhce', 'nhcm', 'nhck'] : [ownCollege]).map((college) => <button key={college} className={sharedCalendar && activeCollege === college ? 'active' : ''} onClick={() => { setCalendarCollege(college); setSharedCalendar(true); setMenuOpen(false); }}>{college.toUpperCase()} Core{member.role === 'event_head' || college !== ownCollege ? ' · Read only' : ''}</button>)}
         </div>}
         {view === "calendar" && viewable.length > 1 && (
           <>
@@ -150,14 +152,14 @@ export default function Dashboard({ member }: { member: Member }) {
       </aside>
 
       <main className="main-panel">
-        {view === "manage" && isCore ? (
+        {view === "manage" && isNhceCore ? (
           <AdminPanel />
         ) : view === "review" && (isCore || isTeacher) ? (
           <ReviewDashboard member={member} />
         ) : view === "workspace" ? (
           <Workspace member={member} />
-        ) : isCore && sharedCalendar ? (
-          <Calendar key={activeCollege} memberId={member.id} memberName={member.name} college={activeCollege} editable={activeCollege === ownCollege} />
+        ) : canViewCoreCalendars && sharedCalendar ? (
+          <Calendar key={activeCollege} memberId={member.id} memberName={member.name} college={activeCollege} editable={isCore && activeCollege === ownCollege} />
         ) : (
           <Calendar
             key={selected.id}

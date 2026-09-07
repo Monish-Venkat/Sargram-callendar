@@ -21,6 +21,7 @@ export interface Member {
 }
 
 export interface Invite {
+  core_college?: string | null;
   id: string;
   email: string;
   name: string;
