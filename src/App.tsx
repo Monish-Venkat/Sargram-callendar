@@ -62,25 +62,37 @@ function AuthScreen() {
     setSubmitting(true);
     setMessage(null);
     const credentials = { email: email.trim().toLowerCase(), password };
+    if (mode === "signUp") {
+      const { data: eligible, error: eligibilityError } = await supabase.rpc("can_create_password_account", { p_email: credentials.email });
+      if (eligibilityError || !eligible) {
+        setSubmitting(false);
+        setMessage("This email is not on the approved member list, or it already has an account. Sign in if you have already created a password.");
+        return;
+      }
+    }
     const result = mode === "signIn"
       ? await supabase.auth.signInWithPassword(credentials)
-      : await supabase.auth.signUp({ ...credentials, options: { emailRedirectTo: window.location.origin } });
+      : await supabase.auth.signUp(credentials);
     setSubmitting(false);
-    if (result.error) return setMessage(result.error.message);
-    if (mode === "signUp" && !result.data.session) setMessage("Check your email to confirm your account, then sign in.");
+    if (result.error) {
+      if (result.error.message === "Invalid login credentials") return setMessage("Email or password is incorrect. If you have not created a password yet, choose Create password.");
+      if (result.error.message === "User already registered") return setMessage("An account already exists for this email. Sign in with its password.");
+      return setMessage(result.error.message);
+    }
+    if (mode === "signUp" && !result.data.session) setMessage("Email confirmation is still enabled. Ask an administrator to disable Confirm email in Supabase Authentication → Email.");
   };
 
   return (
     <main className="auth-screen">
       <form className="auth-card" onSubmit={submit}>
-        <h1>{mode === "signIn" ? "Welcome back" : "Create your account"}</h1>
-        <p>Use the email address added to the SARGAM invite list.</p>
+        <h1>{mode === "signIn" ? "Welcome back" : "Create your password"}</h1>
+        <p>Use the approved SARGAM email address. No confirmation email is required.</p>
         <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
         <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signIn" ? "current-password" : "new-password"} minLength={6} required /></label>
         {message && <div className="auth-message">{message}</div>}
-        <button className="btn btn-primary" disabled={submitting}>{submitting ? "Please wait…" : mode === "signIn" ? "Sign in" : "Create account"}</button>
+        <button className="btn btn-primary" disabled={submitting}>{submitting ? "Please wait…" : mode === "signIn" ? "Sign in" : "Create password"}</button>
         <button type="button" className="auth-switch" onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); setMessage(null); }}>
-          {mode === "signIn" ? "Need an account? Sign up" : "Already have an account? Sign in"}
+          {mode === "signIn" ? "First time here? Create password" : "Already have a password? Sign in"}
         </button>
       </form>
     </main>
