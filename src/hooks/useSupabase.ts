@@ -338,6 +338,18 @@ export function useSetCoreCollege() {
   });
 }
 
+export function useAdminPasswordReset() {
+  return useMutation({
+    mutationFn: async ({ memberId, newPassword }: { memberId: string; newPassword: string }) => {
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { memberId, newPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+  });
+}
+
 export function useSharedUpdates(enabled = true, college = 'nhce') {
   return useQuery({
     queryKey: [...queryKeys.sharedUpdates, college],

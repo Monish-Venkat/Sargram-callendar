@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useInvites, useAllMembers, useEvents, useAddInvite, useDeleteInvite, useAddEvent, useSetCoreCollege } from "../hooks/useSupabase";
+import { useInvites, useAllMembers, useEvents, useAddInvite, useDeleteInvite, useAddEvent, useSetCoreCollege, useAdminPasswordReset } from "../hooks/useSupabase";
 
 type MemberRole = "event_head" | "core" | "teacher";
 type RoleChoice = MemberRole | "nhce_core" | "nhcm_core" | "nhck_core";
@@ -16,6 +16,7 @@ export default function AdminPanel() {
   const removeInvite = useDeleteInvite();
   const addEvent = useAddEvent();
   const switchCollege = useSetCoreCollege();
+  const resetPassword = useAdminPasswordReset();
 
   const [form, setForm] = useState({
     email: "",
@@ -24,6 +25,7 @@ export default function AdminPanel() {
     eventName: "",
   });
   const [newEventName, setNewEventName] = useState("");
+  const [passwordReset, setPasswordReset] = useState({ memberId: "", password: "" });
   const [status, setStatus] = useState<string | null>(null);
 
   async function submitInvite(e: React.FormEvent) {
@@ -51,6 +53,21 @@ export default function AdminPanel() {
     if (!newEventName.trim()) return;
     await addEvent.mutateAsync(newEventName.trim());
     setNewEventName("");
+  }
+
+  async function submitPasswordReset(e: React.FormEvent) {
+    e.preventDefault();
+    if (!passwordReset.memberId || passwordReset.password.length < 8) {
+      setStatus("Enter a member and a temporary password with at least 8 characters.");
+      return;
+    }
+    try {
+      await resetPassword.mutateAsync({ memberId: passwordReset.memberId, newPassword: passwordReset.password });
+      setPasswordReset({ memberId: "", password: "" });
+      setStatus("Temporary password set. Share it with the member privately.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Password could not be reset.");
+    }
   }
 
   return (
@@ -165,6 +182,19 @@ export default function AdminPanel() {
           ))}
           {members.length === 0 && <li className="muted">No one has signed in yet</li>}
         </ul>
+      </section>
+
+      <section className="admin-card">
+        <h3>Reset a member password</h3>
+        <p className="admin-hint">Set a temporary password for an active member. Share it privately; it is never displayed again.</p>
+        <form onSubmit={submitPasswordReset} className="admin-form inline">
+          <select value={passwordReset.memberId} onChange={(e) => setPasswordReset({ ...passwordReset, memberId: e.target.value })} required>
+            <option value="">Select active member</option>
+            {members.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.email}</option>)}
+          </select>
+          <input type="password" minLength={8} autoComplete="new-password" placeholder="Temporary password (8+ characters)" value={passwordReset.password} onChange={(e) => setPasswordReset({ ...passwordReset, password: e.target.value })} required />
+          <button type="submit" disabled={resetPassword.isPending}>{resetPassword.isPending ? "Resetting…" : "Set temporary password"}</button>
+        </form>
       </section>
     </div>
   );
